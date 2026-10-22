@@ -1,0 +1,44 @@
+server:
+  port: 1200
+
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/scm_order
+    username: postgres
+    password: '123'
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+springdoc:
+  swagger-ui:
+    path: /api/orders/swagger-index-html
+  api-docs:
+    path: /api/orders/v3/api-docs
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: INFO
+        type:
+          descriptor:
+            sql:
+              BasicBinder: WARN
+
+feign:
+  httpclient:
+    hc5:
+      enabled: true
+
+inventory:
+  service:
+    url: http://inventory-service:1100

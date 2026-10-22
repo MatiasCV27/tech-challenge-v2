@@ -1,0 +1,107 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    command: start-dev
+    networks:
+      - micro-net
+
+  order-db:
+    image: pgvector/pgvector:pg17
+    container_name: order-db
+    environment:
+      POSTGRES_DB: scm_order
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: '123'
+    ports:
+      - "5432:5432"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    networks:
+      - micro-net
+
+  inventory-db:
+    image: pgvector/pgvector:pg17
+    container_name: inventory-db
+    environment:
+      POSTGRES_DB: scm_inventory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: '123'
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory_db_data:/var/lib/postgresql/data
+    networks:
+      - micro-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d scm_inventory" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    environment:
+      - SERVER_PORT=1100
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_JDBC_URL=jdbc:postgresql://inventory-db:5432/scm_inventory
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123
+      - SPRING_R2DBC_URL=r2dbc:postgresql://inventory-db:5432/scm_inventory
+      - SPRING_R2DBC_USERNAME=postgres
+      - SPRING_R2DBC_PASSWORD=123
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/postman-realm
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - micro-net
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      - SERVER_PORT=1200
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://order-db:5432/scm_order
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123
+      - INVENTORY_SERVICE_URL=http://inventory-service:1100
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/postman-realm
+    depends_on:
+      - order-db
+      - inventory-service
+      - keycloak
+    networks:
+      - micro-net
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    environment:
+      - SERVER_PORT=1000
+    depends_on:
+      - order-service
+      - inventory-service
+      - keycloak
+    ports:
+      - "1000:1000"
+    networks:
+      - micro-net
+
+volumes:
+  order_db_data:
+    driver: local
+  inventory_db_data:
+    driver: local
+
+networks:
+  micro-net:
+    driver: bridge

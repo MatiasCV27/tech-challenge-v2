@@ -1,0 +1,42 @@
+server:
+  port: 1100
+
+spring:
+  application:
+    name: inventory-service
+  datasource:
+    jdbc-url: jdbc:postgresql://inventory-db:5432/scm_inventory
+    username: postgres
+    password: '123'
+    driver-class-name: org.postgresql.Driver
+  r2dbc:
+    url: r2dbc:postgresql://inventory-db:5432/scm_inventory
+    username: postgres
+    password: '123'
+    pool:
+      initial-size: 5
+      max-size: 10
+      max-idle-time: 30m
+      min-idle: 5
+      max-life-time: 40m
+      max-create-connection-time: 30s
+      validation-query: SELECT 1
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+springdoc:
+  swagger-ui:
+    path: /api/products/swagger-index-html
+  api-docs:
+    path: /api/products/v3/api-docs
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: INFO
+        type:
+          descriptor:
+            sql:
+              BasicBinder: WARN
